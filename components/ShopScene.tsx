@@ -2,7 +2,7 @@
 
 import { Html } from "@react-three/drei";
 import { ThreeEvent, useFrame, useThree } from "@react-three/fiber";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { PaletteName, palettes, RoomId, rooms, SHOP } from "@/data/shop";
 
@@ -44,20 +44,50 @@ function RoomLabels({hidden,isolated,focus}:{hidden:Set<RoomId>;isolated:RoomId|
   </Html>)}</>;
 }
 
-function Product({p,color}:{p:[number,number,number];color:string}) {
-  return <Box p={p} s={[.22,.48,.16]} c={color} rough={.65}/>;
+// --- retail, service and care fixtures -------------------------------------------------
+function FoodBag({p,color,label}:{p:[number,number,number];color:string;label:string}) {
+  return <group position={p}>
+    <mesh castShadow scale={[.72,1,.38]}><sphereGeometry args={[.25,18,12]}/><meshStandardMaterial color={color} roughness={.82}/></mesh>
+    <Box p={[0,.01,.1]} s={[.28,.18,.035]} c="#f5ead3" rough={.7}/>
+    <Html center position={[0,.01,.122]} distanceFactor={7} style={{pointerEvents:"none",userSelect:"none"}}><span style={{fontSize:"5px",fontWeight:800,color:"#473b31",letterSpacing:".04em"}}>{label}</span></Html>
+  </group>;
 }
 
-// --- retail, service and care fixtures -------------------------------------------------
+function TreatJar({p,color}:{p:[number,number,number];color:string}) {
+  return <group position={p}>
+    <mesh castShadow><cylinderGeometry args={[.14,.14,.3,18]}/><meshPhysicalMaterial color="#f4ede0" transparent opacity={.72} roughness={.15}/></mesh>
+    <mesh position={[0,.17,0]} castShadow><cylinderGeometry args={[.15,.15,.05,18]}/><meshStandardMaterial color={color} roughness={.45}/></mesh>
+    {([[-.05,-.02],[.04,.03],[0,-.06]] as [number,number][]).map(([x,z],i)=><mesh key={i} position={[x,-.03,z]}><sphereGeometry args={[.035,10,8]}/><meshStandardMaterial color={i===1?"#c99b5d":"#8c6745"}/></mesh>)}
+  </group>;
+}
+
+function WaterBottle({p,color}:{p:[number,number,number];color:string}) {
+  return <group position={p}>
+    <mesh castShadow><cylinderGeometry args={[.105,.125,.36,18]}/><meshPhysicalMaterial color="#c9e5e2" transparent opacity={.66} roughness={.12}/></mesh>
+    <mesh position={[0,.2,0]}><cylinderGeometry args={[.07,.1,.06,18]}/><meshStandardMaterial color={color}/></mesh>
+    <mesh position={[.03,-.2,.08]} rotation={[Math.PI*.35,0,0]}><cylinderGeometry args={[.018,.018,.22,10]}/><meshStandardMaterial color="#a9aaa5" metalness={.75}/></mesh>
+  </group>;
+}
+
+function MiniWheel({p,color}:{p:[number,number,number];color:string}) {
+  return <group position={p}>
+    <mesh rotation={[0,Math.PI/2,0]} castShadow><torusGeometry args={[.18,.035,10,24]}/><meshStandardMaterial color={color}/></mesh>
+    <Box p={[0,-.2,0]} s={[.06,.25,.06]} c="#806b59" metal={.25}/><Box p={[0,-.31,0]} s={[.34,.05,.22]} c="#806b59"/>
+  </group>;
+}
+
 function RetailFixtures({wood,accent}:{wood:string;accent:string}) {
-  const packs=["#c9826e","#79958a","#e5b75e","#8799ad","#d8d0b4"];
+  const packs=["#c9826e","#79958a","#e5b75e","#8799ad","#b8a47d"];
   return <group>
     {[-4.5,-1.5,1.5,4.5].map((x,i)=><group key={x} position={[x,0,5.8]}>
-      <Box p={[0,.62,0]} s={[1.25,1.2,4.15]} c={wood}/>
-      {[0,1,2,3,4].flatMap(row=>[-1,-.5,0,.5,1].map((z,col)=><Product key={`${row}-${col}`} p={[-.42+row*.21,1.42,-1+col*.5]} color={packs[(i+row+col)%packs.length]}/>))}
+      <Box p={[0,.58,0]} s={[1.25,1.12,4.15]} c={wood}/>
+      {[-1.55,-.55,.45,1.45].map(z=><Box key={z} p={[0,1.18,z]} s={[1.32,.08,.82]} c="#eadfce" rough={.6}/>)}
+      {[-1.55,-.55].flatMap((z,row)=>[-.38,0,.38].map((px,col)=><FoodBag key={`food-${z}-${px}`} p={[px,1.47,z]} color={packs[(i+row+col)%packs.length]} label={row?"BEDDING":"HAMSTER MIX"}/>))}
+      {[-.38,0,.38].map((px,col)=><TreatJar key={`treat-${px}`} p={[px,1.4,.45]} color={packs[(i+col+2)%packs.length]}/>)}
+      {[-.38,0,.38].map((px,col)=><WaterBottle key={`water-${px}`} p={[px,1.44,1.45]} color={packs[(i+col+1)%packs.length]}/>)}
     </group>)}
     {[-6.4,6.4].map(x=><group key={x} position={[x,0,7.8]}><Box p={[0,.45,0]} s={[1.25,.9,2.2]} c={accent}/>
-      {[0,1,2].map(i=><mesh key={i} position={[0,.98,-.55+i*.55]} castShadow><cylinderGeometry args={[.3,.36,.3,20]}/><meshStandardMaterial color={packs[i]}/></mesh>)}
+      {[-.62,0,.62].map((z,i)=><MiniWheel key={z} p={[0,1.18,z]} color={packs[i]}/>)}
       </group>)}
   </group>;
 }
@@ -117,15 +147,32 @@ function BackFixtures({wood,accent}:{wood:string;accent:string}) {
     {/* break room, storage */}
     <Box p={[-.4,.74,-3.8]} s={[2.2,1.48,.8]} c={wood}/><Box p={[1.25,.45,-3.8]} s={[.8,.85,.8]} c={accent}/>
     {[6.3,7.25].map(x=><Box key={x} p={[x,1,-3.8]} s={[.75,1.9,1.75]} c="#c7b39b"/>)}
-    <mesh position={[3.2,.42,-3.8]} castShadow><cylinderGeometry args={[.34,.34,.84,24]}/><meshStandardMaterial color="#e8e3d9"/></mesh>
-    <Box p={[3.2,.85,-4.55]} s={[.95,.1,.55]} c="#e8e3d9"/>
+    <StaffWC wood={wood}/>
   </group>;
 }
 
-function Hamster({p,color="#c58b63",phase=0}:{p:[number,number,number];color?:string;phase?:number}) {
+function StaffWC({wood}:{wood:string}) {
+  return <group>
+    {/* floor-mounted toilet with cistern, seat, flush and plumbing */}
+    <mesh position={[3.2,.3,-4.62]} scale={[1,.72,1.18]} castShadow><sphereGeometry args={[.34,24,16]}/><meshStandardMaterial color="#f4f2ec" roughness={.3}/></mesh>
+    <mesh position={[3.2,.52,-4.55]} rotation={[-Math.PI/2,0,0]}><torusGeometry args={[.25,.055,14,32]}/><meshStandardMaterial color="#f7f5ef" roughness={.25}/></mesh>
+    <Box p={[3.2,.86,-4.9]} s={[.64,.72,.28]} c="#f1efe9" rough={.28}/>
+    <mesh position={[3.2,1.25,-4.76]}><cylinderGeometry args={[.035,.035,.035,14]}/><meshStandardMaterial color="#a7aaa8" metalness={.8}/></mesh>
+    <mesh position={[3.2,.11,-4.63]}><cylinderGeometry args={[.18,.23,.22,20]}/><meshStandardMaterial color="#eeeae1"/></mesh>
+    {/* compact wall basin, chrome tap and mirror */}
+    <mesh position={[3.7,.82,-3.05]} scale={[1.05,.32,.72]} castShadow><sphereGeometry args={[.3,24,16,0,Math.PI*2,0,Math.PI*.55]}/><meshStandardMaterial color="#f5f3ed" roughness={.25}/></mesh>
+    <mesh position={[3.7,1.08,-3.13]} rotation={[Math.PI/2,0,0]}><torusGeometry args={[.11,.018,10,20,Math.PI]}/><meshStandardMaterial color="#9da4a3" metalness={.85} roughness={.2}/></mesh>
+    <mesh position={[3.7,.94,-3.13]}><cylinderGeometry args={[.022,.022,.24,10]}/><meshStandardMaterial color="#9da4a3" metalness={.85}/></mesh>
+    <Box p={[3.7,1.78,-2.98]} s={[.72,.86,.045]} c="#b8d0cf" rough={.08} metal={.25}/>
+    <Box p={[3.7,1.78,-3.015]} s={[.82,.96,.055]} c={wood} rough={.55}/>
+    <Box p={[2.48,1.15,-3.08]} s={[.1,.55,.34]} c="#e5ded0" rough={.6}/>
+  </group>;
+}
+
+function Hamster({p,color="#c58b63",phase=0,held=false}:{p:[number,number,number];color?:string;phase?:number;held?:boolean}) {
   const g=useRef<THREE.Group>(null);
-  useFrame(({clock})=>{const t=clock.elapsedTime+phase;if(g.current){g.current.position.x=p[0]+Math.sin(t*.42)*.38;g.current.position.y=p[1]+Math.abs(Math.sin(t*2.2))*.025;g.current.rotation.y=Math.cos(t*.42)>0?Math.PI/2:-Math.PI/2}});
-  return <group ref={g} position={p} scale={.76}>
+  useFrame(({clock,camera})=>{const t=clock.elapsedTime+phase;if(g.current){if(held){const forward=new THREE.Vector3();camera.getWorldDirection(forward);g.current.position.copy(camera.position).add(forward.multiplyScalar(1.05)).add(new THREE.Vector3(0,-.55,0));g.current.rotation.set(0,camera.rotation.y+Math.PI,0)}else{g.current.position.x=p[0]+Math.sin(t*.42)*.38;g.current.position.y=p[1]+Math.abs(Math.sin(t*2.2))*.025;g.current.position.z=p[2];g.current.rotation.y=Math.cos(t*.42)>0?Math.PI/2:-Math.PI/2}}});
+  return <group ref={g} position={p} scale={.507}>
     {/* round body and cream belly */}
     <mesh castShadow position={[0,.34,0]} scale={[1,.9,1.24]}><sphereGeometry args={[.37,24,18]}/><meshStandardMaterial color={color} roughness={.9}/></mesh>
     <mesh position={[0,.33,.34]} scale={[.82,.9,.42]}><sphereGeometry args={[.25,20,16]}/><meshStandardMaterial color="#f1ddc2" roughness={1}/></mesh>
@@ -139,6 +186,15 @@ function Hamster({p,color="#c58b63",phase=0}:{p:[number,number,number];color?:st
     {[-.19,.19].map(x=><mesh key={x} position={[x,.12,.31]} scale={[1.2,.65,1]}><sphereGeometry args={[.09,14,10]}/><meshStandardMaterial color="#f1c7ad"/></mesh>)}
     <mesh position={[0,.35,-.47]}><sphereGeometry args={[.075,14,10]}/><meshStandardMaterial color="#eab8a4"/></mesh>
   </group>;
+}
+
+function Hamsters() {
+  const {camera}=useThree();
+  const [held,setHeld]=useState<number|null>(null);
+  const [positions,setPositions]=useState<[number,number,number][]>([[-6.4,0,-6.8],[1.2,0,-7.5],[5.7,0,.8]]);
+  useEffect(()=>{const press=(e:KeyboardEvent)=>{if(e.code!=="KeyP"||e.repeat)return;e.preventDefault();if(held!==null){const forward=new THREE.Vector3();camera.getWorldDirection(forward);const drop=camera.position.clone().add(forward.multiplyScalar(1.5));setPositions(old=>old.map((p,i)=>i===held?[THREE.MathUtils.clamp(drop.x,-8,8),0,THREE.MathUtils.clamp(drop.z,-10.4,10.4)]:p));setHeld(null);return}let nearest=0,best=Infinity;positions.forEach((p,i)=>{const distance=camera.position.distanceTo(new THREE.Vector3(...p));if(distance<best){nearest=i;best=distance}});setHeld(nearest)};window.addEventListener("keydown",press);return()=>window.removeEventListener("keydown",press)},[camera,held,positions]);
+  const colors=["#bb765c","#9f8c76","#d1aa77"];
+  return <>{positions.map((p,i)=><Hamster key={i} p={p} color={colors[i]} phase={i*2.4} held={held===i}/>)}</>;
 }
 
 function Entrance({accent}:{accent:string}) {
@@ -236,7 +292,7 @@ export default function ShopScene({selected,labelFocus,onSelect,hidden,isolated,
     </>}
     <RoomZones selected={selected} focus={labelFocus} onSelect={onSelect} hidden={hidden} isolated={isolated} show={layers.zones}/>
     {layers.labels&&<RoomLabels hidden={hidden} isolated={isolated} focus={labelFocus}/>} 
-    {layers.hamsters&&<><Hamster p={[-6.4,0,-6.8]} color="#bb765c"/><Hamster p={[1.2,0,-7.5]} color="#9f8c76" phase={2.4}/><Hamster p={[5.7,0,.8]} color="#d1aa77" phase={4.7}/></>}
+    {layers.hamsters&&<Hamsters/>}
     <mesh rotation={[-Math.PI/2,0,0]} position={[0,-.24,0]} receiveShadow><planeGeometry args={[80,80]}/><meshStandardMaterial color={evening?"#1c2625":"#b8b8a7"} roughness={1}/></mesh>
   </>;
 }
