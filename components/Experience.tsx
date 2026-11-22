@@ -73,7 +73,7 @@ function supportsWebGL(){try{const c=document.createElement("canvas");return Boo
 export default function Experience(){
   const [started,setStarted]=useState(false);
   const [selected,setSelected]=useState<RoomId|null>(null);const [mode,setMode]=useState<Mode>("orbit");const [hidden,setHidden]=useState<Set<RoomId>>(new Set());const [isolated,setIsolated]=useState<RoomId|null>(null);
-  const [layers,setLayers]=useState<Layers>({walls:true,transparentWalls:false,roof:false,furniture:true,labels:true,zones:true,cats:true});const [palette,setPalette]=useState<PaletteName>("warm");const [evening,setEvening]=useState(false);const [light,setLight]=useState(1);
+  const [layers,setLayers]=useState<Layers>({walls:true,transparentWalls:false,roof:false,furniture:true,labels:true,zones:true,hamsters:true});const [palette,setPalette]=useState<PaletteName>("warm");const [evening,setEvening]=useState(false);const [light,setLight]=useState(1);
   const [touring,setTouring]=useState(false);const [tourIndex,setTourIndex]=useState(0);const [paused,setPaused]=useState(false);const orbit=useRef<any>(null);const move=useRef<[number,number]>([0,0]);const [webgl,setWebgl]=useState<boolean|null>(null);const [visible,setVisible]=useState(true);
   useEffect(()=>{setWebgl(supportsWebGL());const onVisibility=()=>setVisible(!document.hidden);document.addEventListener("visibilitychange",onVisibility);return()=>document.removeEventListener("visibilitychange",onVisibility)},[]);
   const choose=useCallback((id:RoomId)=>{setSelected(id);setMode("orbit")},[]);
@@ -84,7 +84,7 @@ export default function Experience(){
     <a className="skip" href="#controls">Skip to controls</a>
     <Canvas shadows frameloop={visible?"always":"never"} camera={{position:[16,17,22],fov:42,near:.1,far:100}} dpr={[1,1.75]} gl={{antialias:true,powerPreference:"high-performance"}}>
       <Suspense fallback={null}>
-        <ShopScene selected={selected} onSelect={choose} hidden={hidden} isolated={isolated} layers={{...layers,labels:started&&layers.labels,zones:started&&layers.zones}} palette={palette} evening={evening} light={light}/>
+        <ShopScene selected={selected} labelFocus={touring?selected:null} onSelect={choose} hidden={hidden} isolated={isolated} layers={{...layers,labels:started&&layers.labels,zones:started&&layers.zones}} palette={palette} evening={evening} light={light}/>
         <CameraDirector selected={selected} mode={mode} orbit={orbit}/>
         <WalkController active={mode==="walk"} move={move} selected={selected}/>
         <OrbitControls ref={orbit} enabled={started&&mode!=="walk"} enableRotate={mode==="orbit"} makeDefault minDistance={8} maxDistance={42} maxPolarAngle={Math.PI*.48} minPolarAngle={.18} target={[0,0,-.3]} enableDamping dampingFactor={.075}/>

@@ -1,7 +1,7 @@
 # The Jin Little Paws Co. — Interactive 3D Presentation
 
 An interactive, presentation-ready reconstruction of a pet retail, grooming and
-cat-hotel floor plan. The project turns a single plan image into a navigable
+hamster-hotel floor plan. The project turns a single plan image into a navigable
 procedural 3D environment without remote models or textures.
 
 ## Main functions
@@ -9,15 +9,15 @@ procedural 3D environment without remote models or textures.
 - **Three viewing modes:** orbiting dollhouse, true top-plan view, and
   first-person walkthrough.
 - **13-stop guided tour:** entrance, retail, service, waiting, two grooming
-  rooms, breakroom, staff WC, secure hotel entrance, storage, boarding,
+  rooms, breakroom, staff WC, secure hamster-hotel entrance, storage, boarding,
   enrichment, and food preparation.
 - **Room interaction:** click or search every space, open its description,
   isolate it, hide it, or restore the complete plan.
 - **Detailed access:** visible hinged doors and walk-through openings for both
-  grooming rooms, breakroom, staff WC, secure two-stage cat-hotel entry,
+  grooming rooms, breakroom, staff WC, secure two-stage hamster-hotel entry,
   storage, enrichment, boarding and food-preparation circulation.
 - **Presentation layers:** walls, transparent X-ray walls, ceiling, furniture,
-  room zones, labels, cats and animations.
+  room zones, labels, hamsters and animations.
 - **Design controls:** three coordinated material schemes, lighting intensity,
   and day/evening modes.
 - **Responsive controls:** keyboard and mouse on desktop; swipe look and touch
@@ -39,7 +39,7 @@ The submitted plan is treated as an approximately 17 m × 22 m, single-storey sh
 
 - `app/`: Next.js App Router entry, metadata and responsive visual system.
 - `components/Experience.tsx`: WebGL canvas, camera movement, collision, post-processing and app state.
-- `components/ShopScene.tsx`: procedural architecture, rooms, furniture, products, cats and lighting.
+- `components/ShopScene.tsx`: procedural architecture, rooms, furniture, products, hamsters and lighting.
 - `components/Hud.tsx`: room browser, information panels, layers, materials, tour and touch controls.
 - `data/shop.ts`: centralized room dimensions, metadata, colours and camera/tour positions.
 
@@ -79,7 +79,7 @@ environment variables, remote assets or custom build command are required.
 - Orbit, pan, zoom and reset work with mouse and touch.
 - Every labelled room opens the correct information panel.
 - Search, hide, isolate and restore operate from the room drawer.
-- Roof, walls, furniture, zones, labels and cat layers toggle independently.
+- Roof, walls, furniture, zones, labels and hamster layers toggle independently.
 - Walk mode responds to keyboard, dragging and the mobile joystick without leaving the shell.
 - Every modeled door opening is accessible in walk mode, including the staff WC.
 - Top Plan enters a north-oriented overhead view with pan and zoom.

@@ -6,8 +6,8 @@ import { useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { PaletteName, palettes, RoomId, rooms, SHOP } from "@/data/shop";
 
-export type Layers = { walls:boolean; transparentWalls:boolean; roof:boolean; furniture:boolean; labels:boolean; zones:boolean; cats:boolean };
-type Props = { selected:RoomId|null; onSelect:(id:RoomId)=>void; hidden:Set<RoomId>; isolated:RoomId|null; layers:Layers; palette:PaletteName; evening:boolean; light:number };
+export type Layers = { walls:boolean; transparentWalls:boolean; roof:boolean; furniture:boolean; labels:boolean; zones:boolean; hamsters:boolean };
+type Props = { selected:RoomId|null; labelFocus:RoomId|null; onSelect:(id:RoomId)=>void; hidden:Set<RoomId>; isolated:RoomId|null; layers:Layers; palette:PaletteName; evening:boolean; light:number };
 
 const Box = ({p,s,c,rough=0.72,metal=0,rot=[0,0,0]}:{p:[number,number,number];s:[number,number,number];c:string;rough?:number;metal?:number;rot?:[number,number,number]}) => (
   <mesh position={p} rotation={rot} castShadow receiveShadow>
@@ -22,7 +22,7 @@ function Wall({p,s,color,opacity}:{p:[number,number,number];s:[number,number,num
   </mesh>;
 }
 
-function RoomZones({selected,onSelect,hidden,isolated,show}:{selected:RoomId|null;onSelect:(id:RoomId)=>void;hidden:Set<RoomId>;isolated:RoomId|null;show:boolean}) {
+function RoomZones({selected,focus,onSelect,hidden,isolated,show}:{selected:RoomId|null;focus:RoomId|null;onSelect:(id:RoomId)=>void;hidden:Set<RoomId>;isolated:RoomId|null;show:boolean}) {
   const [hovered,setHovered]=useState<RoomId|null>(null);
   return <>{rooms.map(r=>{
     const excluded=hidden.has(r.id)||(isolated!==null&&isolated!==r.id);
@@ -33,13 +33,13 @@ function RoomZones({selected,onSelect,hidden,isolated,show}:{selected:RoomId|nul
       onPointerOut={()=>{setHovered(null);document.body.style.cursor="default"}}
       onClick={(e)=>{e.stopPropagation();onSelect(r.id)}}>
       <planeGeometry args={r.size}/>
-      <meshStandardMaterial color={r.color} transparent opacity={show?(active?.55:over?.38:.16):.01} roughness={.9}/>
+      <meshStandardMaterial color={r.color} transparent opacity={show?(active?.9:over?.74:focus?.14:.6):.01} roughness={.82}/>
     </mesh>
   })}</>;
 }
 
-function RoomLabels({hidden,isolated}:{hidden:Set<RoomId>;isolated:RoomId|null}) {
-  return <>{rooms.map(r=>(hidden.has(r.id)||(isolated&&isolated!==r.id))?null:<Html key={r.id} center position={[r.center[0],.24,r.center[2]]} distanceFactor={18} style={{pointerEvents:"none",userSelect:"none"}}>
+function RoomLabels({hidden,isolated,focus}:{hidden:Set<RoomId>;isolated:RoomId|null;focus:RoomId|null}) {
+  return <>{rooms.map(r=>(hidden.has(r.id)||(isolated&&isolated!==r.id)||(focus&&focus!==r.id))?null:<Html key={r.id} center position={[r.center[0],.24,r.center[2]]} distanceFactor={18} style={{pointerEvents:"none",userSelect:"none"}}>
     <span className="room-label">{r.label||r.name}</span>
   </Html>)}</>;
 }
@@ -100,13 +100,16 @@ function HotelSuites({wood,accent}:{wood:string;accent:string}) {
 function BackFixtures({wood,accent}:{wood:string;accent:string}) {
   return <group>
     <HotelSuites wood={wood} accent={accent}/>
-    {/* enrichment */}
-    <mesh position={[-6.5,.55,-7.5]} castShadow><cylinderGeometry args={[.55,.68,1.1,28]}/><meshStandardMaterial color="#dca07a"/></mesh>
-    {[[-7.4,1.2,-8.4],[-5.5,1.7,-7.6],[-7,2.35,-6.45]].map((p,i)=><group key={i}>
-      <Box p={[p[0],p[1]/2,p[2]] as [number,number,number]} s={[.12,p[1],.12]} c={wood}/>
-      <mesh position={p as [number,number,number]}><cylinderGeometry args={[.58,.58,.14,28]}/><meshStandardMaterial color={i===1?accent:"#d9b697"}/></mesh>
+    {/* hamster enrichment: upright wheels, tunnels, hideouts and low forage beds */}
+    {[-7.15,-5.65].map((x,i)=><group key={x} position={[x,0,-8.25+i*.55]}>
+      <Box p={[0,.12,0]} s={[1.1,.24,.65]} c={wood}/>
+      <mesh position={[0,.88,0]} rotation={[0,Math.PI/2,0]} castShadow><torusGeometry args={[.55,.075,14,36]}/><meshStandardMaterial color={i?accent:"#dca07a"} roughness={.65}/></mesh>
+      <Box p={[0,.44,0]} s={[.08,.75,.08]} c="#8a755f" metal={.25}/>
     </group>)}
-    <mesh position={[-5.8,.35,-8.8]} rotation={[0,0,Math.PI/2]}><torusGeometry args={[.38,.14,16,30,Math.PI*1.65]}/><meshStandardMaterial color={accent}/></mesh>
+    <mesh position={[-6.6,.32,-6.55]} rotation={[Math.PI/2,0,Math.PI/2]} castShadow><cylinderGeometry args={[.34,.34,1.65,24,1,true]}/><meshStandardMaterial color="#dca07a" side={THREE.DoubleSide}/></mesh>
+    <mesh position={[-7.55,.35,-7]} castShadow><cylinderGeometry args={[.62,.72,.7,28]}/><meshStandardMaterial color="#d9b697"/></mesh>
+    <mesh position={[-7.55,.43,-6.62]} rotation={[Math.PI/2,0,0]}><circleGeometry args={[.22,24]}/><meshStandardMaterial color="#6f7e70"/></mesh>
+    <Box p={[-5.55,.18,-6.6]} s={[1.15,.36,1.35]} c="#b9c69f"/>
     {/* prep and cleaning */}
     <Box p={[7.35,.75,-8.6]} s={[1.2,1.5,3.6]} c="#c9ccca" metal={.55}/><Box p={[6.2,.9,-9.1]} s={[1.2,1.8,1.2]} c="#d8dcd9" metal={.45}/>
     <mesh position={[6.2,1.83,-9.1]} rotation={[-Math.PI/2,0,0]}><torusGeometry args={[.32,.06,12,28]}/><meshStandardMaterial color="#8c9994" metalness={.8}/></mesh>
@@ -119,15 +122,22 @@ function BackFixtures({wood,accent}:{wood:string;accent:string}) {
   </group>;
 }
 
-function Cat({p,color="coral",phase=0}:{p:[number,number,number];color?:string;phase?:number}) {
-  const g=useRef<THREE.Group>(null); const tail=useRef<THREE.Mesh>(null);
-  useFrame(({clock})=>{const t=clock.elapsedTime+phase;if(g.current){g.current.position.x=p[0]+Math.sin(t*.35)*.45;g.current.rotation.y=Math.cos(t*.35)>0?Math.PI/2:-Math.PI/2}if(tail.current)tail.current.rotation.z=Math.sin(t*2.1)*.22});
-  return <group ref={g} position={p} scale={.72}>
-    <mesh castShadow position={[0,.34,0]}><capsuleGeometry args={[.22,.5,8,16]}/><meshStandardMaterial color={color}/></mesh>
-    <mesh castShadow position={[0,.65,.3]}><sphereGeometry args={[.24,20,16]}/><meshStandardMaterial color={color}/></mesh>
-    {[[-.15,.88,.31],[.15,.88,.31]].map((v,i)=><mesh key={i} position={v as [number,number,number]} rotation={[0,0,i?-.2:.2]}><coneGeometry args={[.1,.23,3]}/><meshStandardMaterial color={color}/></mesh>)}
-    <mesh ref={tail} position={[0,.4,-.45]} rotation={[0,0,.3]}><capsuleGeometry args={[.055,.55,5,10]}/><meshStandardMaterial color={color}/></mesh>
-    {[[-.15,.11,.2],[.15,.11,.2]].map((v,i)=><mesh key={i} position={v as [number,number,number]}><capsuleGeometry args={[.07,.28,5,10]}/><meshStandardMaterial color={color}/></mesh>)}
+function Hamster({p,color="#c58b63",phase=0}:{p:[number,number,number];color?:string;phase?:number}) {
+  const g=useRef<THREE.Group>(null);
+  useFrame(({clock})=>{const t=clock.elapsedTime+phase;if(g.current){g.current.position.x=p[0]+Math.sin(t*.42)*.38;g.current.position.y=p[1]+Math.abs(Math.sin(t*2.2))*.025;g.current.rotation.y=Math.cos(t*.42)>0?Math.PI/2:-Math.PI/2}});
+  return <group ref={g} position={p} scale={.76}>
+    {/* round body and cream belly */}
+    <mesh castShadow position={[0,.34,0]} scale={[1,.9,1.24]}><sphereGeometry args={[.37,24,18]}/><meshStandardMaterial color={color} roughness={.9}/></mesh>
+    <mesh position={[0,.33,.34]} scale={[.82,.9,.42]}><sphereGeometry args={[.25,20,16]}/><meshStandardMaterial color="#f1ddc2" roughness={1}/></mesh>
+    {/* head, rounded ears and hamster cheeks */}
+    <mesh castShadow position={[0,.55,.34]}><sphereGeometry args={[.3,24,18]}/><meshStandardMaterial color={color} roughness={.9}/></mesh>
+    {[-.18,.18].map((x,i)=><group key={x}><mesh position={[x,.79,.3]}><sphereGeometry args={[.105,18,14]}/><meshStandardMaterial color={color}/></mesh><mesh position={[x,.79,.365]}><sphereGeometry args={[.062,16,12]}/><meshStandardMaterial color="#e6a89c"/></mesh></group>)}
+    {[-.2,.2].map(x=><mesh key={x} position={[x,.5,.57]}><sphereGeometry args={[.105,18,14]}/><meshStandardMaterial color="#f0c6aa"/></mesh>)}
+    {[-.11,.11].map(x=><mesh key={x} position={[x,.63,.61]}><sphereGeometry args={[.035,12,10]}/><meshStandardMaterial color="#171b19" roughness={.2}/></mesh>)}
+    <mesh position={[0,.53,.66]}><sphereGeometry args={[.04,12,10]}/><meshStandardMaterial color="#7b4b43"/></mesh>
+    {/* tiny paws and tail nub */}
+    {[-.19,.19].map(x=><mesh key={x} position={[x,.12,.31]} scale={[1.2,.65,1]}><sphereGeometry args={[.09,14,10]}/><meshStandardMaterial color="#f1c7ad"/></mesh>)}
+    <mesh position={[0,.35,-.47]}><sphereGeometry args={[.075,14,10]}/><meshStandardMaterial color="#eab8a4"/></mesh>
   </group>;
 }
 
@@ -204,7 +214,7 @@ function Architecture({wall,floor,wood,accent,wallOpacity,roof,walls}:{wall:stri
   </group>;
 }
 
-export default function ShopScene({selected,onSelect,hidden,isolated,layers,palette,evening,light}:Props) {
+export default function ShopScene({selected,labelFocus,onSelect,hidden,isolated,layers,palette,evening,light}:Props) {
   const p=palettes[palette]; const isVisible=(id:RoomId)=>!hidden.has(id)&&(!isolated||isolated===id);
   const env=evening?"#25302f":"#e8eee6";
   const wallOpacity=selected?(layers.transparentWalls?.13:.18):(layers.transparentWalls?.26:1);
@@ -224,9 +234,9 @@ export default function ShopScene({selected,onSelect,hidden,isolated,layers,pale
       {isVisible("grooming2")&&<Grooming z={2.2} accent={p.accent}/>} 
       <BackFixtures wood={p.wood} accent={p.accent}/>
     </>}
-    <RoomZones selected={selected} onSelect={onSelect} hidden={hidden} isolated={isolated} show={layers.zones}/>
-    {layers.labels&&<RoomLabels hidden={hidden} isolated={isolated}/>} 
-    {layers.cats&&<><Cat p={[-6.4,0,-6.8]} color="#bb765c"/><Cat p={[1.2,0,-7.5]} color="#9da59b" phase={2.4}/><Cat p={[5.7,0,.8]} color="#d1aa77" phase={4.7}/></>}
+    <RoomZones selected={selected} focus={labelFocus} onSelect={onSelect} hidden={hidden} isolated={isolated} show={layers.zones}/>
+    {layers.labels&&<RoomLabels hidden={hidden} isolated={isolated} focus={labelFocus}/>} 
+    {layers.hamsters&&<><Hamster p={[-6.4,0,-6.8]} color="#bb765c"/><Hamster p={[1.2,0,-7.5]} color="#9f8c76" phase={2.4}/><Hamster p={[5.7,0,.8]} color="#d1aa77" phase={4.7}/></>}
     <mesh rotation={[-Math.PI/2,0,0]} position={[0,-.24,0]} receiveShadow><planeGeometry args={[80,80]}/><meshStandardMaterial color={evening?"#1c2625":"#b8b8a7"} roughness={1}/></mesh>
   </>;
 }
