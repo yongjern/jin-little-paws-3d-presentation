@@ -7,7 +7,7 @@ import * as THREE from "three";
 import { PaletteName, palettes, RoomId, rooms, SHOP } from "@/data/shop";
 
 export type Layers = { walls:boolean; transparentWalls:boolean; roof:boolean; furniture:boolean; labels:boolean; zones:boolean; hamsters:boolean };
-type Props = { selected:RoomId|null; labelFocus:RoomId|null; onSelect:(id:RoomId)=>void; hidden:Set<RoomId>; isolated:RoomId|null; layers:Layers; palette:PaletteName; evening:boolean; light:number };
+type Props = { selected:RoomId|null; labelFocus:RoomId|null; onSelect:(id:RoomId)=>void; walkMode:boolean; hidden:Set<RoomId>; isolated:RoomId|null; layers:Layers; palette:PaletteName; evening:boolean; light:number };
 
 const Box = ({p,s,c,rough=0.72,metal=0,rot=[0,0,0]}:{p:[number,number,number];s:[number,number,number];c:string;rough?:number;metal?:number;rot?:[number,number,number]}) => (
   <mesh position={p} rotation={rot} castShadow receiveShadow>
@@ -22,7 +22,7 @@ function Wall({p,s,color,opacity}:{p:[number,number,number];s:[number,number,num
   </mesh>;
 }
 
-function RoomZones({selected,focus,onSelect,hidden,isolated,show}:{selected:RoomId|null;focus:RoomId|null;onSelect:(id:RoomId)=>void;hidden:Set<RoomId>;isolated:RoomId|null;show:boolean}) {
+function RoomZones({selected,focus,onSelect,walkMode,hidden,isolated,show}:{selected:RoomId|null;focus:RoomId|null;onSelect:(id:RoomId)=>void;walkMode:boolean;hidden:Set<RoomId>;isolated:RoomId|null;show:boolean}) {
   const [hovered,setHovered]=useState<RoomId|null>(null);
   return <>{rooms.map(r=>{
     const excluded=hidden.has(r.id)||(isolated!==null&&isolated!==r.id);
@@ -31,7 +31,8 @@ function RoomZones({selected,focus,onSelect,hidden,isolated,show}:{selected:Room
     return <mesh key={r.id} position={[r.center[0],0.025,r.center[2]]} rotation={[-Math.PI/2,0,0]}
       onPointerOver={(e:ThreeEvent<PointerEvent>)=>{e.stopPropagation();setHovered(r.id);document.body.style.cursor="pointer"}}
       onPointerOut={()=>{setHovered(null);document.body.style.cursor="default"}}
-      onClick={(e)=>{e.stopPropagation();onSelect(r.id)}}>
+      onClick={(e)=>{e.stopPropagation();if(!walkMode)onSelect(r.id)}}
+      onDoubleClick={(e)=>{e.stopPropagation();if(walkMode)onSelect(r.id)}}>
       <planeGeometry args={r.size}/>
       <meshStandardMaterial color={r.color} transparent opacity={show?(active?.9:over?.74:focus?.14:.6):.01} roughness={.82}/>
     </mesh>
@@ -106,21 +107,30 @@ function ServiceCounter({wood,accent}:{wood:string;accent:string}) {
 
 function Waiting({wood,accent}:{wood:string;accent:string}) {
   return <group>
-    {[-2.1,-.7,.7,2.1].map((z,i)=><group key={z} position={[7.25,0,z]}><Box p={[0,.45,0]} s={[1.2,.85,1.05]} c={i%2?accent:"#d9c4aa"}/><Box p={[.48,.95,0]} s={[.18,.85,1.05]} c={wood}/></group>)}
-    <mesh position={[5.25,.42,1.45]} castShadow><cylinderGeometry args={[.65,.72,.84,30]}/><meshStandardMaterial color="#dcb08e"/></mesh>
-    <mesh position={[5.25,.87,1.45]} rotation={[-Math.PI/2,0,0]}><torusGeometry args={[.35,.12,12,30]}/><meshStandardMaterial color="#f2eadc"/></mesh>
+    {/* L-shaped lounge follows the north and east walls shown in the plan. */}
+    {[5.35,6.55,7.55].map((x,i)=><group key={x} position={[x,0,-1.48]}>
+      <Box p={[0,.43,0]} s={[1.02,.72,1.02]} c={i===1?accent:"#d9c4aa"}/><Box p={[0,.88,-.43]} s={[1.02,.72,.16]} c={wood}/>
+    </group>)}
+    {[-.25,.95,2.15].map((z,i)=><group key={z} position={[7.72,0,z]}>
+      <Box p={[0,.43,0]} s={[1.02,.72,1.02]} c={i===1?accent:"#d9c4aa"}/><Box p={[.43,.88,0]} s={[.16,.72,1.02]} c={wood}/>
+    </group>)}
+    <Box p={[7.55,.34,3]} s={[1.12,.68,.66]} c={wood}/>
+    <mesh position={[7.55,.73,3]} rotation={[-Math.PI/2,0,0]}><torusGeometry args={[.23,.065,12,28]}/><meshStandardMaterial color="#f2eadc"/></mesh>
   </group>;
 }
 
-function Grooming({z,accent}:{z:number;accent:string}) { return <group position={[-6.1,0,z]}>
-  <Box p={[0,.78,0]} s={[1.55,.16,.8]} c="#dedbd2" metal={.1}/><Box p={[0,.4,0]} s={[.14,.75,.14]} c="#7c7f7d" metal={.7}/>
-  <Box p={[-1.1,.55,-.9]} s={[.75,1.1,1.15]} c="#ece6db"/><mesh position={[-1.1,1.12,-.9]} rotation={[-Math.PI/2,0,0]}><torusGeometry args={[.27,.07,12,30]}/><meshStandardMaterial color={accent}/></mesh>
-  <Box p={[1.15,.9,-1]} s={[.55,1.8,.34]} c={accent}/>
-  <mesh position={[0,.95,.1]}><torusGeometry args={[.35,.035,10,30]}/><meshStandardMaterial color="#a6a6a2" metalness={.7}/></mesh>
+function Grooming({z,accent}:{z:number;accent:string}) { return <group position={[-6.3,0,z]}>
+  {/* Wall cabinetry and wash station line the west wall; table stays central. */}
+  {[-1.05,0,1.05].map(pz=><Box key={pz} p={[-1.22,.62,pz]} s={[.54,1.24,.82]} c="#ece6db"/>)}
+  <Box p={[-1.18,1.29,0]} s={[.64,.1,2.95]} c={accent}/>
+  <mesh position={[-1.12,1.39,-.9]} rotation={[-Math.PI/2,0,0]}><torusGeometry args={[.2,.045,12,28]}/><meshStandardMaterial color="#a6a6a2" metalness={.7}/></mesh>
+  <Box p={[.15,.79,0]} s={[1.55,.18,.86]} c="#dedbd2" metal={.1}/><Box p={[.15,.4,0]} s={[.14,.78,.14]} c="#7c7f7d" metal={.7}/>
+  <mesh position={[.15,.96,.12]}><torusGeometry args={[.33,.032,10,30]}/><meshStandardMaterial color="#a6a6a2" metalness={.7}/></mesh>
   </group> }
 
 function HotelSuites({wood,accent}:{wood:string;accent:string}) {
-  return <group>{[-8.45,-6.5].map(z=>[-3,-1.8,-.6,.6,1.8,3].map((x,i)=><group key={`${z}-${x}`} position={[x,0,z]}>
+  const rows=[{z:-9.35,xs:[-3,-1.8,-.6,.6,1.8,3]},{z:-6.55,xs:[-2.4,-1.2,0,1.2,2.4]}];
+  return <group>{rows.flatMap(row=>row.xs.map((x,i)=><group key={`${row.z}-${x}`} position={[x,0,row.z]}>
     <Box p={[0,1,0]} s={[1.05,1.9,1.15]} c={wood}/><Box p={[0,1.05,.585]} s={[.76,1.45,.035]} c="#dce6df" rough={.15}/>
     <mesh position={[0,.75,.64]}><circleGeometry args={[.18,24]}/><meshStandardMaterial color={accent}/></mesh>
     <Box p={[0,.18,.7]} s={[.7,.12,.55]} c="#e1c1a4"/>
@@ -131,22 +141,24 @@ function BackFixtures({wood,accent}:{wood:string;accent:string}) {
   return <group>
     <HotelSuites wood={wood} accent={accent}/>
     {/* hamster enrichment: upright wheels, tunnels, hideouts and low forage beds */}
-    {[-7.15,-5.65].map((x,i)=><group key={x} position={[x,0,-8.25+i*.55]}>
+    {[-7.3,-5.75].map((x,i)=><group key={x} position={[x,0,-9.2+i*.4]}>
       <Box p={[0,.12,0]} s={[1.1,.24,.65]} c={wood}/>
       <mesh position={[0,.88,0]} rotation={[0,Math.PI/2,0]} castShadow><torusGeometry args={[.55,.075,14,36]}/><meshStandardMaterial color={i?accent:"#dca07a"} roughness={.65}/></mesh>
       <Box p={[0,.44,0]} s={[.08,.75,.08]} c="#8a755f" metal={.25}/>
     </group>)}
-    <mesh position={[-6.6,.32,-6.55]} rotation={[Math.PI/2,0,Math.PI/2]} castShadow><cylinderGeometry args={[.34,.34,1.65,24,1,true]}/><meshStandardMaterial color="#dca07a" side={THREE.DoubleSide}/></mesh>
-    <mesh position={[-7.55,.35,-7]} castShadow><cylinderGeometry args={[.62,.72,.7,28]}/><meshStandardMaterial color="#d9b697"/></mesh>
-    <mesh position={[-7.55,.43,-6.62]} rotation={[Math.PI/2,0,0]}><circleGeometry args={[.22,24]}/><meshStandardMaterial color="#6f7e70"/></mesh>
-    <Box p={[-5.55,.18,-6.6]} s={[1.15,.36,1.35]} c="#b9c69f"/>
-    {/* prep and cleaning */}
-    <Box p={[7.35,.75,-8.6]} s={[1.2,1.5,3.6]} c="#c9ccca" metal={.55}/><Box p={[6.2,.9,-9.1]} s={[1.2,1.8,1.2]} c="#d8dcd9" metal={.45}/>
-    <mesh position={[6.2,1.83,-9.1]} rotation={[-Math.PI/2,0,0]}><torusGeometry args={[.32,.06,12,28]}/><meshStandardMaterial color="#8c9994" metalness={.8}/></mesh>
-    <Box p={[5.25,.62,-7.25]} s={[1.3,1.2,2.2]} c="#e6e0d5"/><Box p={[5.25,1.27,-7.25]} s={[1.34,.1,2.25]} c={wood}/>
-    {/* break room, storage */}
-    <Box p={[-.4,.74,-3.8]} s={[2.2,1.48,.8]} c={wood}/><Box p={[1.25,.45,-3.8]} s={[.8,.85,.8]} c={accent}/>
-    {[6.3,7.25].map(x=><Box key={x} p={[x,1,-3.8]} s={[.75,1.9,1.75]} c="#c7b39b"/>)}
+    <mesh position={[-7.25,.32,-7.25]} rotation={[Math.PI/2,0,Math.PI/2]} castShadow><cylinderGeometry args={[.34,.34,1.45,24,1,true]}/><meshStandardMaterial color="#dca07a" side={THREE.DoubleSide}/></mesh>
+    <mesh position={[-7.75,.35,-6.3]} castShadow><cylinderGeometry args={[.62,.72,.7,28]}/><meshStandardMaterial color="#d9b697"/></mesh>
+    <mesh position={[-7.75,.43,-5.92]} rotation={[Math.PI/2,0,0]}><circleGeometry args={[.22,24]}/><meshStandardMaterial color="#6f7e70"/></mesh>
+    <Box p={[-5.75,.18,-6.2]} s={[1.35,.36,1.1]} c="#b9c69f"/>
+    {/* Food prep uses an L-shaped stainless perimeter run and a central prep island. */}
+    <Box p={[6.25,.72,-10.15]} s={[3.45,1.44,1]} c="#c9ccca" metal={.55}/><Box p={[7.75,.72,-8.45]} s={[.9,1.44,3.4]} c="#c9ccca" metal={.55}/>
+    <mesh position={[6.15,1.48,-10.15]} rotation={[-Math.PI/2,0,0]}><torusGeometry args={[.3,.055,12,28]}/><meshStandardMaterial color="#8c9994" metalness={.8}/></mesh>
+    <Box p={[5.45,.62,-7.7]} s={[1.45,1.2,2.1]} c="#e6e0d5"/><Box p={[5.45,1.27,-7.7]} s={[1.5,.1,2.15]} c={wood}/>
+    {/* Breakroom kitchenette, dining table and storage shelving follow the plan. */}
+    <Box p={[-.2,.72,-4.78]} s={[3.7,1.44,.78]} c={wood}/><Box p={[-1.5,1.5,-4.78]} s={[.78,.58,.42]} c={accent}/>
+    <Box p={[.2,.72,-3.55]} s={[1.35,.1,.82]} c="#e8e3d9"/><Box p={[.2,.36,-3.55]} s={[.12,.72,.12]} c="#7c7f7d" metal={.65}/>
+    {[-.45,.85].map(x=><mesh key={x} position={[x,.35,-3.55]} castShadow><cylinderGeometry args={[.22,.25,.7,20]}/><meshStandardMaterial color={accent}/></mesh>)}
+    {[6.05,7.2].map(x=><group key={x}>{[-4.7,-3.85,-3].map(z=><Box key={z} p={[x,.9,z]} s={[.85,.08,.68]} c="#c7b39b"/>)}<Box p={[x,.94,-3.85]} s={[.08,1.88,2.45]} c={wood}/></group>)}
     <StaffWC wood={wood}/>
   </group>;
 }
@@ -270,7 +282,7 @@ function Architecture({wall,floor,wood,accent,wallOpacity,roof,walls}:{wall:stri
   </group>;
 }
 
-export default function ShopScene({selected,labelFocus,onSelect,hidden,isolated,layers,palette,evening,light}:Props) {
+export default function ShopScene({selected,labelFocus,onSelect,walkMode,hidden,isolated,layers,palette,evening,light}:Props) {
   const p=palettes[palette]; const isVisible=(id:RoomId)=>!hidden.has(id)&&(!isolated||isolated===id);
   const env=evening?"#25302f":"#e8eee6";
   const wallOpacity=selected?(layers.transparentWalls?.13:.18):(layers.transparentWalls?.26:1);
@@ -290,7 +302,7 @@ export default function ShopScene({selected,labelFocus,onSelect,hidden,isolated,
       {isVisible("grooming2")&&<Grooming z={2.2} accent={p.accent}/>} 
       <BackFixtures wood={p.wood} accent={p.accent}/>
     </>}
-    <RoomZones selected={selected} focus={labelFocus} onSelect={onSelect} hidden={hidden} isolated={isolated} show={layers.zones}/>
+    <RoomZones selected={selected} focus={labelFocus} onSelect={onSelect} walkMode={walkMode} hidden={hidden} isolated={isolated} show={layers.zones}/>
     {layers.labels&&<RoomLabels hidden={hidden} isolated={isolated} focus={labelFocus}/>} 
     {layers.hamsters&&<Hamsters/>}
     <mesh rotation={[-Math.PI/2,0,0]} position={[0,-.24,0]} receiveShadow><planeGeometry args={[80,80]}/><meshStandardMaterial color={evening?"#1c2625":"#b8b8a7"} roughness={1}/></mesh>
