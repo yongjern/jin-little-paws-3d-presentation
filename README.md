@@ -25,7 +25,7 @@ procedural 3D environment without remote models or textures.
 
 ## Plan interpretation
 
-The submitted plan is treated as an approximately 17 m × 22 m, single-storey shell with a 4 m clear height. The centred south entrance opens into the retail zone; service and grooming occupy the middle; grooming rooms sit west, waiting and storage east; staff amenities form a transition band; and enrichment, boarding, food preparation and cleaning occupy the north.
+The submitted plan is treated as an approximately 12 m × 22 m, single-storey model with a 4 m estimated clear height. The length and small fixture dimensions are visual estimates from the annotated plan. The centred south entrance opens into the retail zone; service and grooming occupy the middle; grooming rooms sit west, waiting and storage east; staff amenities form a transition band; and enrichment, boarding, food preparation and cleaning occupy the north.
 
 ## Assumptions
 
@@ -67,12 +67,12 @@ environment variables, remote assets or custom build command are required.
 
 ## Adjustment guide
 
-- Shop width, length, height: `data/shop.ts` → `SHOP`
+- Shop width, length and height: `data/floorPlan.ts`
 - Room centres, dimensions, names, descriptions and camera targets: `data/shop.ts` → `rooms`
 - Guided tour sequence: `data/shop.ts` → `tour`
 - Material colours: `data/shop.ts` → `palettes`
 - Physical walls, door openings and fixture geometry: `components/ShopScene.tsx`
-- Collision volumes: `components/Experience.tsx` → `blocks`
+- Walls, door openings, walk spawn points and fixture collision footprints: `data/floorPlan.ts`
 
 ## Test checklist
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { Dispatch, MutableRefObject, SetStateAction, useMemo, useState } from "react";
-import { PaletteName, roomById, RoomId, rooms, tour } from "@/data/shop";
+import { PaletteName, roomById, RoomId, rooms, SHOP, tour } from "@/data/shop";
 import { Layers } from "./ShopScene";
 
 type Mode="orbit"|"top"|"walk";
@@ -10,7 +10,7 @@ type Props={started:boolean;setStarted:(v:boolean)=>void;selected:RoomId|null;on
   palette:PaletteName;setPalette:(p:PaletteName)=>void;evening:boolean;setEvening:(v:boolean)=>void;light:number;setLight:(v:number)=>void;
   touring:boolean;setTouring:(v:boolean)=>void;tourIndex:number;setTourIndex:Dispatch<SetStateAction<number>>;paused:boolean;setPaused:(v:boolean)=>void;move:MutableRefObject<[number,number]>};
 
-function MiniPlan({id}:{id:RoomId}){const r=roomById[id];return <div className="mini-plan" aria-label={`${r.name} location on plan`}><div className="plan-shell">{rooms.map(x=><i key={x.id} className={x.id===id?"hot":""} style={{left:`${((x.center[0]-x.size[0]/2)+8.5)/17*100}%`,top:`${((x.center[2]-x.size[1]/2)+11)/22*100}%`,width:`${x.size[0]/17*100}%`,height:`${x.size[1]/22*100}%`,background:x.id===id?x.color:undefined}}/>)}</div><span>ROOM FOCUS · LIVE PLAN</span></div>}
+function MiniPlan({id}:{id:RoomId}){const r=roomById[id];return <div className="mini-plan" aria-label={`${r.name} location on plan`}><div className="plan-shell" style={{width:"auto",aspectRatio:SHOP.width/SHOP.length}}>{rooms.map(x=><i key={x.id} className={x.id===id?"hot":""} style={{left:`${((x.center[0]-x.size[0]/2)+SHOP.width/2)/SHOP.width*100}%`,top:`${((x.center[2]-x.size[1]/2)+SHOP.length/2)/SHOP.length*100}%`,width:`${x.size[0]/SHOP.width*100}%`,height:`${x.size[1]/SHOP.length*100}%`,background:x.id===id?x.color:undefined}}/>)}</div><span>ROOM FOCUS · LIVE PLAN</span></div>}
 
 function Tutorial({close}:{close:()=>void}){return <div className="tutorial-back"><section className="tutorial" role="dialog" aria-modal="true" aria-labelledby="tutorial-title"><div className="eyebrow">QUICK ORIENTATION · 01</div><h2 id="tutorial-title">Explore every corner.</h2><p>This presentation turns the submitted floor plan into an estimated, editable 3D spatial model.</p><div className="tutorial-grid"><article><b>01</b><h3>Orbit the shop</h3><p>Drag to rotate, scroll to zoom, right-drag to pan.</p></article><article><b>02</b><h3>Select a room</h3><p>Choose a floor zone or use the room index.</p></article><article><b>03</b><h3>Walk and interact</h3><p>Use WASD or arrows, drag to look, double-click a room for information, and press P for a hamster.</p></article></div><button className="primary wide" onClick={close}>Enter presentation <span>→</span></button></section></div>}
 
