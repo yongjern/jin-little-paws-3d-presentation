@@ -1,6 +1,6 @@
 "use client";
 
-import { Html } from "@react-three/drei";
+import SceneLabel from "./SceneLabel";
 import { ThreeEvent, useFrame, useThree } from "@react-three/fiber";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import * as THREE from "three";
@@ -42,9 +42,9 @@ function RoomZones({selected,focus,onSelect,walkMode,hidden,isolated,show}:{sele
 }
 
 function RoomLabels({hidden,isolated,focus}:{hidden:Set<RoomId>;isolated:RoomId|null;focus:RoomId|null}) {
-  return <>{rooms.map(r=>(hidden.has(r.id)||(isolated&&isolated!==r.id)||(focus&&focus!==r.id))?null:<Html key={r.id} center position={[r.center[0],.24,r.center[2]]} distanceFactor={18} style={{pointerEvents:"none",userSelect:"none"}}>
-    <span className="room-label">{r.label||r.name}</span>
-  </Html>)}</>;
+  return <>{rooms.map(r=>(hidden.has(r.id)||(isolated&&isolated!==r.id)||(focus&&focus!==r.id))?null:
+    <SceneLabel key={r.id} position={[r.center[0],.24,r.center[2]]} distanceFactor={18} className="room-label" text={r.label||r.name}/>
+  )}</>;
 }
 
 // --- retail, service and care fixtures -------------------------------------------------
@@ -52,7 +52,7 @@ function FoodBag({p,color,label}:{p:[number,number,number];color:string;label:st
   return <group position={p}>
     <mesh castShadow scale={[.72,1,.38]}><sphereGeometry args={[.25,18,12]}/><meshStandardMaterial color={color} roughness={.82}/></mesh>
     <Box p={[0,.01,.1]} s={[.28,.18,.035]} c="#f5ead3" rough={.7}/>
-    <Html center position={[0,.01,.122]} distanceFactor={7} style={{pointerEvents:"none",userSelect:"none"}}><span style={{fontSize:"5px",fontWeight:800,color:"#473b31",letterSpacing:".04em"}}>{label}</span></Html>
+    <SceneLabel position={[0,.01,.122]} distanceFactor={7} className="product-label" text={label}/>
   </group>;
 }
 
@@ -83,8 +83,8 @@ function Placed({f,children}:{f:Footprint;children:ReactNode}) {
   return <group position={[f.x,0,f.z]} rotation={[0,f.angle,0]}>{children}</group>;
 }
 
-function Sign({p,children}:{p:[number,number,number];children:ReactNode}) {
-  return <Html center position={p} distanceFactor={8} style={{pointerEvents:"none",userSelect:"none"}}><span className="counter-sign">{children}</span></Html>;
+function Sign({p,children}:{p:[number,number,number];children:string}) {
+  return <SceneLabel position={p} distanceFactor={8} className="counter-sign" text={children}/>;
 }
 
 function Cabinet({f,h=1,c,top=c}:{f:Footprint;h?:number;c:string;top?:string}) {
@@ -262,7 +262,7 @@ function Entrance({accent}:{accent:string}) {
       {[.035,2.47].map(y=><Box key={y} p={[0,y,0]} s={[leaf-.025,.055,.07]} c="#586b64"/>)}
     </group>)}
     <Box p={[0,3.13,z+.05]} s={[5.5,.65,.22]} c={accent}/>
-    <Html center position={[0,3.15,z+.18]} distanceFactor={12} style={{pointerEvents:"none",userSelect:"none"}}><span className="entrance-sign">THE JIN LITTLE PAWS CO. <b>?</b></span></Html>
+    <SceneLabel position={[0,3.15,z+.18]} distanceFactor={12} className="entrance-sign" text="THE JIN LITTLE PAWS CO." accent="?"/>
   </>;
 }
 
