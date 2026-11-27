@@ -7,7 +7,7 @@ import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "rea
 import * as THREE from "three";
 import ShopScene, { Layers } from "./ShopScene";
 import Hud from "./Hud";
-import { PaletteName, roomById, RoomId, tour } from "@/data/shop";
+import { PaletteName, roomById, RoomId, rooms, tour } from "@/data/shop";
 import { clearAt, type Footprint, SHOP, walkObstacles, walkSpawns } from "@/data/floorPlan";
 
 type Mode="orbit"|"top"|"walk";
@@ -18,8 +18,9 @@ function CameraDirector({selected,mode,orbit}:{selected:RoomId|null;mode:Mode;or
     camera.up.set(0,mode==="top"?0:1,mode==="top"?-1:0);
     if(mode==="top"){
       const span=Math.max(SHOP.length,SHOP.width*size.height/size.width);
-      goal.current.set(0,SHOP.height+span*.56/Math.tan(THREE.MathUtils.degToRad(21)),.01);
-      target.current.set(0,0,0);moving.current=true;return;
+      camera.position.set(0,SHOP.height+span*.56/Math.tan(THREE.MathUtils.degToRad(21)),0);
+      camera.lookAt(0,0,0);
+      moving.current=false;return;
     }
     if(!selected||mode!=="orbit"){moving.current=false;return}
     const r=roomById[selected]; goal.current.set(...r.camera);target.current.set(...r.target);moving.current=true;
@@ -27,8 +28,7 @@ function CameraDirector({selected,mode,orbit}:{selected:RoomId|null;mode:Mode;or
   useFrame(()=>{
     if(!moving.current||mode==="walk") return;
     camera.position.lerp(goal.current,.065);
-    if(mode==="top")camera.lookAt(target.current);
-    else if(orbit.current){orbit.current.target.lerp(target.current,.08);orbit.current.update()}
+    if(orbit.current){orbit.current.target.lerp(target.current,.08);orbit.current.update()}
     if(camera.position.distanceTo(goal.current)<.06) moving.current=false;
   });
   return null;
@@ -53,35 +53,105 @@ function WalkController({active,move,selected,obstacles}:{active:boolean;move:Re
   }); return null;
 }
 
+function SceneFocus({mode,enabled,hidden,isolated,onRoom,onFixture}:{
+  mode:Mode;enabled:boolean;hidden:ReadonlySet<RoomId>;isolated:RoomId|null;onRoom:(id:RoomId|null)=>void;onFixture:(name:string|null)=>void;
+}) {
+  const {gl}=useThree();
+  const pointer=useRef<THREE.Vector2|null>(null);
+  const [ray]=useState(()=>new THREE.Raycaster());
+  const [center]=useState(()=>new THREE.Vector2());
+  const nextPick=useRef(0);
+  const [floor]=useState(()=>new THREE.Plane(new THREE.Vector3(0,1,0),-.025));
+  const [hit]=useState(()=>new THREE.Vector3());
+  const [meshes]=useState<THREE.Mesh[]>(()=>[]);
+  const [intersections]=useState<THREE.Intersection[]>(()=>[]);
+  const previous=useRef<{mode:Mode;room:RoomId|null;fixture:string|null}>({mode,room:null,fixture:null});
+  useEffect(()=>{
+    const canvas=gl.domElement;
+    const move=(event:PointerEvent)=>{
+      const rect=canvas.getBoundingClientRect();
+      if(event.pointerType==="touch")return;
+      pointer.current??=new THREE.Vector2();
+      pointer.current.set((event.clientX-rect.left)/rect.width*2-1,1-(event.clientY-rect.top)/rect.height*2);
+    };
+    const leave=()=>{pointer.current=null};
+    canvas.addEventListener("pointermove",move);canvas.addEventListener("pointerleave",leave);
+    return()=>{canvas.removeEventListener("pointermove",move);canvas.removeEventListener("pointerleave",leave)};
+  },[gl,onRoom,onFixture]);
+  useFrame(({camera,scene,clock})=>{
+    if(previous.current.mode!==mode){
+      previous.current={mode,room:null,fixture:null};
+      nextPick.current=0;
+    }
+    const point=!enabled?null:mode==="walk"?center:pointer.current;
+    if(mode!=="top"&&point){
+      if(clock.elapsedTime<nextPick.current)return;
+      nextPick.current=clock.elapsedTime+.08;
+    }
+    let room:RoomId|null=null, fixture:string|null=null;
+    if(point){
+      camera.updateMatrixWorld();
+      ray.setFromCamera(point,camera);
+      if(mode==="top"){
+        if(ray.ray.intersectPlane(floor,hit)) room=rooms.find(r=>!hidden.has(r.id)&&(!isolated||isolated===r.id)
+          &&Math.abs(hit.x-r.center[0])<=r.size[0]/2&&Math.abs(hit.z-r.center[2])<=r.size[1]/2)?.id??null;
+      }else{
+        meshes.length=0;
+        scene.traverseVisible(object=>{
+          if(!(object instanceof THREE.Mesh)||object.userData.roomZone)return;
+          const material=object.material;
+          if(!Array.isArray(material)&&(!material.visible||(material.transparent&&!material.depthWrite)))return;
+          meshes.push(object);
+        });
+        intersections.length=0;
+        ray.intersectObjects(meshes,false,intersections);
+        for(let object:THREE.Object3D|null=intersections[0]?.object??null;object;object=object.parent){
+          if(object.userData.fixtureName){fixture=object.userData.fixtureName;break}
+        }
+      }
+    }
+    if(room!==previous.current.room){previous.current.room=room;onRoom(room)}
+    if(fixture!==previous.current.fixture){previous.current.fixture=fixture;onFixture(fixture)}
+  });
+  return null;
+}
+
 function Loader(){const {progress}=useProgress();const [ready,setReady]=useState(false);useEffect(()=>{const t=setTimeout(()=>setReady(true),1400);return()=>clearTimeout(t)},[]);const shown=ready?100:Math.max(8,progress);return <div className={`loader ${ready?"done":""}`}><div className="loader-mark"><i/><i/><i/><b/></div><p>Building the little paws world</p><div className="load-track"><span style={{width:`${shown}%`}}/></div><small>{Math.round(shown)}% · procedural scene</small></div>}
 
 function supportsWebGL(){try{const c=document.createElement("canvas");return Boolean(c.getContext("webgl2")||c.getContext("webgl"))}catch{return false}}
 
 export default function Experience(){
   const [started,setStarted]=useState(false);
-  const [selected,setSelected]=useState<RoomId|null>(null);const [mode,setMode]=useState<Mode>("orbit");const [hidden,setHidden]=useState<Set<RoomId>>(new Set());const [isolated,setIsolated]=useState<RoomId|null>(null);
+  const [selected,setSelected]=useState<RoomId|null>(null);const [mode,updateMode]=useState<Mode>("orbit");const [hidden,setHidden]=useState<Set<RoomId>>(new Set());const [isolated,setIsolated]=useState<RoomId|null>(null);
+  const [hoveredRoom,setHoveredRoom]=useState<RoomId|null>(null);
+  const [focusedFixture,setFocusedFixture]=useState<string|null>(null);
   const [layers,setLayers]=useState<Layers>({walls:true,transparentWalls:false,roof:false,furniture:true,labels:true,zones:true,hamsters:true});const [palette,setPalette]=useState<PaletteName>("warm");const [evening,setEvening]=useState(false);const [light,setLight]=useState(1);
   const [touring,setTouring]=useState(false);const [tourIndex,setTourIndex]=useState(0);const [paused,setPaused]=useState(false);const orbit=useRef<any>(null);const move=useRef<[number,number]>([0,0]);const [webgl,setWebgl]=useState<boolean|null>(null);const [visible,setVisible]=useState(true);
   useEffect(()=>{setWebgl(supportsWebGL());const onVisibility=()=>setVisible(!document.hidden);document.addEventListener("visibilitychange",onVisibility);return()=>document.removeEventListener("visibilitychange",onVisibility)},[]);
   const obstacles=useMemo(()=>walkObstacles(layers.walls,layers.furniture,hidden,isolated),[layers.walls,layers.furniture,hidden,isolated]);
-  const choose=useCallback((id:RoomId)=>{setSelected(id);setMode(current=>current==="walk"?"walk":"orbit")},[]);
+  const choose=useCallback((id:RoomId)=>{setSelected(id)},[]);
+  const setMode=(next:Mode)=>{
+    if(next===mode)return;
+    setHoveredRoom(null);setFocusedFixture(null);updateMode(next);
+  };
   useEffect(()=>{if(!touring||paused)return;setSelected(tour[tourIndex]);const t=window.setTimeout(()=>setTourIndex(i=>i===tour.length-1?i:i+1),6500);return()=>clearTimeout(t)},[touring,tourIndex,paused]);
   const resetView=()=>{setSelected(null);setMode("orbit");if(orbit.current){orbit.current.reset()}};
   if(webgl===false)return <main className="fallback"><div><span>●</span><h1>A 3D-capable browser is needed</h1><p>Please open this presentation in a current Chromium browser with WebGL enabled.</p></div></main>;
-  return <main className="experience">
+  return <main className={`experience mode-${mode}`}>
     <a className="skip" href="#controls">Skip to controls</a>
     <Canvas shadows frameloop={visible?"always":"never"} camera={{position:[16,17,22],fov:42,near:.1,far:100}} dpr={[1,1.75]} gl={{antialias:true,powerPreference:"high-performance"}}>
       <Suspense fallback={null}>
-        <ShopScene selected={selected} labelFocus={touring?selected:null} onSelect={choose} walkMode={mode==="walk"} hidden={hidden} isolated={isolated} layers={{...layers,labels:started&&layers.labels,zones:started&&layers.zones}} palette={palette} evening={evening} light={light}/>
+        <ShopScene selected={selected} hoveredRoom={mode==="top"?hoveredRoom:null} labelFocus={touring?selected:null} onSelect={choose} mode={mode} hidden={hidden} isolated={isolated} layers={{...layers,labels:started&&layers.labels,zones:started&&layers.zones}} palette={palette} evening={evening} light={light}/>
         <CameraDirector selected={selected} mode={mode} orbit={orbit}/>
         <WalkController active={mode==="walk"} move={move} selected={selected} obstacles={obstacles}/>
         <OrbitControls ref={orbit} enabled={started&&mode==="orbit"} makeDefault minDistance={8} maxDistance={42} maxPolarAngle={Math.PI*.48} minPolarAngle={.18} target={[0,0,-.3]} enableDamping dampingFactor={.075}/>
-        <EffectComposer multisampling={0}><N8AO aoRadius={1.7} intensity={1.15}/><SMAA/></EffectComposer>
-        <AdaptiveDpr pixelated/><Preload all/>
+        <SceneFocus mode={mode} enabled={started&&(mode==="top"||(layers.labels&&layers.furniture))} hidden={hidden} isolated={isolated} onRoom={setHoveredRoom} onFixture={setFocusedFixture}/>
+        {mode!=="top"&&<><EffectComposer multisampling={0}><N8AO aoRadius={1.7} intensity={1.15}/><SMAA/></EffectComposer><AdaptiveDpr pixelated/></>}
+        <Preload all/>
       </Suspense>
     </Canvas>
     <Loader/>
-    <Hud started={started} setStarted={setStarted} selected={selected} onSelect={choose} onClose={()=>setSelected(null)} mode={mode} setMode={setMode} resetView={resetView}
+    <Hud started={started} setStarted={setStarted} selected={selected} hoveredRoom={mode==="top"?hoveredRoom:null} focusedFixture={focusedFixture} onSelect={choose} onClose={()=>setSelected(null)} mode={mode} setMode={setMode} resetView={resetView}
       layers={layers} setLayers={setLayers} hidden={hidden} setHidden={setHidden} isolated={isolated} setIsolated={setIsolated}
       palette={palette} setPalette={setPalette} evening={evening} setEvening={setEvening} light={light} setLight={setLight}
       touring={touring} setTouring={setTouring} tourIndex={tourIndex} setTourIndex={setTourIndex} paused={paused} setPaused={setPaused} move={move}/>

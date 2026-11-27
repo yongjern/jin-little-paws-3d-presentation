@@ -11,8 +11,11 @@ procedural 3D environment without remote models or textures.
 - **13-stop guided tour:** entrance, retail, service, waiting, two grooming
   rooms, breakroom, staff WC, secure hamster-hotel entrance, storage, boarding,
   enrichment, and food preparation.
-- **Room interaction:** click or search every space, open its description,
-  isolate it, hide it, or restore the complete plan.
+- **Room interaction:** hover over a room in Top plan to preview its details, or
+  click or tap it to keep its details open. Click a room in Dollhouse, or
+  double-click in Walk inside. The room index can also locate, isolate or hide rooms.
+- **Fixture focus:** hover over a fixture in Dollhouse or aim at it in Walk inside
+  to see its name. Press `P` in Walk inside to pick up or put down a hamster.
 - **Detailed access:** visible hinged doors and walk-through openings for both
   grooming rooms, breakroom, staff WC, secure two-stage hamster-hotel entry,
   storage, enrichment, boarding and food-preparation circulation.
@@ -26,6 +29,10 @@ procedural 3D environment without remote models or textures.
 ## Plan interpretation
 
 The submitted plan is treated as an approximately 12 m × 22 m, single-storey model with a 4 m estimated clear height. The length and small fixture dimensions are visual estimates from the annotated plan. The centred south entrance opens into the retail zone; service and grooming occupy the middle; grooming rooms sit west, waiting and storage east; staff amenities form a transition band; and enrichment, boarding, food preparation and cleaning occupy the north.
+
+The secure vestibule between the staff WC and storage opens directly into food
+preparation. The rear care aisle connects food preparation, two facing rows of
+six boarding habitats, and enrichment without full-height dividers.
 
 ## Assumptions
 

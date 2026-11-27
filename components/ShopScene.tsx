@@ -9,7 +9,7 @@ import { PaletteName, palettes, RoomId, rooms } from "@/data/shop";
 import { clearAt, doors, entrance, fixtures, type Footprint, secureDoorX, SHOP, walkObstacles, walls as planWalls } from "@/data/floorPlan";
 
 export type Layers = { walls:boolean; transparentWalls:boolean; roof:boolean; furniture:boolean; labels:boolean; zones:boolean; hamsters:boolean };
-type Props = { selected:RoomId|null; labelFocus:RoomId|null; onSelect:(id:RoomId)=>void; walkMode:boolean; hidden:Set<RoomId>; isolated:RoomId|null; layers:Layers; palette:PaletteName; evening:boolean; light:number };
+type Props = { selected:RoomId|null; labelFocus:RoomId|null; hoveredRoom:RoomId|null; onSelect:(id:RoomId)=>void; mode:"orbit"|"top"|"walk"; hidden:Set<RoomId>; isolated:RoomId|null; layers:Layers; palette:PaletteName; evening:boolean; light:number };
 
 const Box = ({p,s,c,rough=0.72,metal=0,rot=[0,0,0]}:{p:[number,number,number];s:[number,number,number];c:string;rough?:number;metal?:number;rot?:[number,number,number]}) => (
   <mesh position={p} rotation={rot} castShadow receiveShadow>
@@ -24,13 +24,13 @@ function Wall({p,s,color,opacity}:{p:[number,number,number];s:[number,number,num
   </mesh>;
 }
 
-function RoomZones({selected,focus,onSelect,walkMode,hidden,isolated,show}:{selected:RoomId|null;focus:RoomId|null;onSelect:(id:RoomId)=>void;walkMode:boolean;hidden:Set<RoomId>;isolated:RoomId|null;show:boolean}) {
+function RoomZones({selected,focus,hoveredRoom,top,onSelect,walkMode,hidden,isolated,show}:{selected:RoomId|null;focus:RoomId|null;hoveredRoom:RoomId|null;top:boolean;onSelect:(id:RoomId)=>void;walkMode:boolean;hidden:Set<RoomId>;isolated:RoomId|null;show:boolean}) {
   const [hovered,setHovered]=useState<RoomId|null>(null);
   return <>{rooms.map(r=>{
     const excluded=hidden.has(r.id)||(isolated!==null&&isolated!==r.id);
     if(excluded) return null;
-    const active=selected===r.id, over=hovered===r.id;
-    return <mesh key={r.id} position={[r.center[0],0.025,r.center[2]]} rotation={[-Math.PI/2,0,0]}
+    const active=selected===r.id, over=(top?hoveredRoom:hovered)===r.id;
+    return <mesh key={r.id} userData={{roomZone:true}} position={[r.center[0],0.025,r.center[2]]} rotation={[-Math.PI/2,0,0]}
       onPointerOver={(e:ThreeEvent<PointerEvent>)=>{e.stopPropagation();setHovered(r.id);document.body.style.cursor="pointer"}}
       onPointerOut={()=>{setHovered(null);document.body.style.cursor="default"}}
       onClick={(e)=>{e.stopPropagation();if(!walkMode)onSelect(r.id)}}
@@ -49,11 +49,10 @@ function RoomLabels({hidden,isolated,focus}:{hidden:Set<RoomId>;isolated:RoomId|
 
 // --- retail, service and care fixtures -------------------------------------------------
 function FoodBag({p,color,label}:{p:[number,number,number];color:string;label:string}) {
-  return <group position={p}>
+  return <group position={p}><NamedFixture name={label}>
     <mesh castShadow scale={[.72,1,.38]}><sphereGeometry args={[.25,18,12]}/><meshStandardMaterial color={color} roughness={.82}/></mesh>
     <Box p={[0,.01,.1]} s={[.28,.18,.035]} c="#f5ead3" rough={.7}/>
-    <SceneLabel position={[0,.01,.122]} distanceFactor={7} className="product-label" text={label}/>
-  </group>;
+  </NamedFixture></group>;
 }
 
 function TreatJar({p,color}:{p:[number,number,number];color:string}) {
@@ -83,8 +82,8 @@ function Placed({f,children}:{f:Footprint;children:ReactNode}) {
   return <group position={[f.x,0,f.z]} rotation={[0,f.angle,0]}>{children}</group>;
 }
 
-function Sign({p,children}:{p:[number,number,number];children:string}) {
-  return <SceneLabel position={p} distanceFactor={8} className="counter-sign" text={children}/>;
+function NamedFixture({name,children}:{name:string;children:ReactNode}) {
+  return <group userData={{fixtureName:name}}>{children}</group>;
 }
 
 function Cabinet({f,h=1,c,top=c}:{f:Footprint;h?:number;c:string;top?:string}) {
@@ -119,28 +118,26 @@ function RetailFixtures({wood,accent}:{wood:string;accent:string}) {
         </group>)}
       </Placed>;
     })}
-    {fixtures.offers.map(f=><Placed key={f.x} f={f}><Box p={[0,.4,0]} s={[f.w,.8,f.d]} c={accent}/>
-      {[-.22,.22].map((x,i)=><FoodBag key={x} p={[x,1.02,0]} color={packs[i]} label="HAMSTER MIX"/>)}
-      <Sign p={[0,.54,.37]}>SPECIAL OFFER</Sign>
-    </Placed>)}
+    {fixtures.offers.map(f=><Placed key={f.x} f={f}><NamedFixture name="Special Offer"><Box p={[0,.4,0]} s={[f.w,.8,f.d]} c={accent}/>
+      {[-.22,.22].map((x,i)=><FoodBag key={x} p={[x,1.02,0]} color={packs[i]} label="Hamster Mix"/>)}
+    </NamedFixture></Placed>)}
   </>;
 }
 
 function PetScale() {
   const f=fixtures.scale;
-  return <Placed f={f}><Box p={[0,.054,0]} s={[f.w,.108,f.d]} c="#718487" metal={.55}/>
+  return <Placed f={f}><NamedFixture name="Pet Scale"><Box p={[0,.054,0]} s={[f.w,.108,f.d]} c="#718487" metal={.55}/>
     <Box p={[0,.122,-.035]} s={[.52,.028,.39]} c="#bec8ca" metal={.65}/><Box p={[0,.126,.21]} s={[.2,.038,.085]} c="#253d37"/>
-    <Sign p={[0,.17,.33]}>PET SCALE</Sign>
-  </Placed>;
+  </NamedFixture></Placed>;
 }
 
 function ServiceCounter({wood,accent}:{wood:string;accent:string}) {
   return <>
-    {fixtures.counter.map((f,i)=><Placed key={i} f={f}><Box p={[0,.55,0]} s={[f.w,1.1,f.d]} c={wood}/>
+    {fixtures.counter.map((f,i)=><Placed key={i} f={f}><NamedFixture name={i>=10?"POS":i>=5?"Grooming Check-in":"Service Check-in"}>
+      <Box p={[0,.55,0]} s={[f.w,1.1,f.d]} c={wood}/>
       <Box p={[0,1.095,0]} s={[f.w,.085,f.d]} c="#e8dfd1" rough={.38}/>
       {[2,7,12].includes(i)&&<><Box p={[0,1.32,0]} s={[.28,.25,.065]} c="#263632"/><Box p={[0,1.16,0]} s={[.07,.15,.09]} c="#727a79"/></>}
-    </Placed>)}
-    <Sign p={[-1.65,1.2,.65]}>POS</Sign><Sign p={[-.77,1.19,1.23]}>GROOMING CHECK-IN</Sign><Sign p={[.74,1.19,1.14]}>SERVICE CHECK-IN</Sign>
+    </NamedFixture></Placed>)}
     <Cabinet f={fixtures.rearShelf} h={.9} c={wood} top={accent}/>
     <Placed f={fixtures.rearShelf}>{[1.18,1.57].map(y=><Box key={y} p={[0,y,-.06]} s={[1.34,.07,.3]} c={wood}/>)}</Placed>
     <Sink f={fixtures.wash}/>
@@ -150,15 +147,14 @@ function ServiceCounter({wood,accent}:{wood:string;accent:string}) {
 function Waiting({wood,accent}:{wood:string;accent:string}) {
   return <>
     {fixtures.seats.map((f,i)=><Placed key={i} f={f}><Box p={[0,.23,0]} s={[.73,.46,.68]} c={wood}/><Box p={[0,.48,0]} s={[f.w,.13,f.d]} c={i%2?accent:"#d9c4aa"}/><Box p={[0,.75,-.32]} s={[f.w,.55,.14]} c={i%2?accent:"#d9c4aa"}/></Placed>)}
-    <Cabinet f={fixtures.water} h={.83} c="#becbd0"/><Placed f={fixtures.water}><WaterBottle p={[0,1.08,0]} color="#789d9e"/><Sign p={[0,.64,.31]}>WATER</Sign></Placed>
+    <NamedFixture name="Water"><Cabinet f={fixtures.water} h={.83} c="#becbd0"/><Placed f={fixtures.water}><WaterBottle p={[0,1.08,0]} color="#789d9e"/></Placed></NamedFixture>
   </>;
 }
 
 function Grooming({id,accent}:{id:"grooming1"|"grooming2";accent:string}) {
   const {table,cabinet,locker}=fixtures[id];
   const f=fixtures.stairs;
-  return <><Sink f={cabinet} c="#d1d9d9"/><Cabinet f={locker} h={1.54} c="#8da9b7"/>
-    <Placed f={locker}><Sign p={[0,1.15,.26]}>EQUIPMENT</Sign></Placed>
+  return <><Sink f={cabinet} c="#d1d9d9"/><NamedFixture name="Equipment Storage"><Cabinet f={locker} h={1.54} c="#8da9b7"/></NamedFixture>
     <Placed f={table}><Box p={[0,.8,0]} s={[table.w,.12,table.d]} c={accent}/><Box p={[0,.38,0]} s={[.14,.76,.14]} c="#7c7f7d" metal={.7}/>
       <Box p={[-.53,1.14,-.3]} s={[.05,.68,.05]} c="#a5adad" metal={.7}/><Box p={[-.24,1.46,-.3]} s={[.62,.05,.05]} c="#a5adad" metal={.7}/>
     </Placed>
@@ -167,7 +163,7 @@ function Grooming({id,accent}:{id:"grooming1"|"grooming2";accent:string}) {
 }
 
 function HotelSuites({wood,accent}:{wood:string;accent:string}) {
-  return <>{fixtures.suites.map((f,i)=><Placed key={i} f={f}>
+  return <>{fixtures.suites.map((f,i)=><Placed key={i} f={f}><NamedFixture name={`Habitat C${i+1}`}><group scale={[f.w/.79,1,f.d/.8]}>
     <Box p={[0,.99,-.37]} s={[f.w,1.98,.06]} c={wood}/>{[-.36,.36].map(x=><Box key={x} p={[x,.99,0]} s={[.07,1.98,.8]} c={wood}/>)}
     {[.09,1.01].map(y=><group key={y} position={[0,y,0]}>
       <Box p={[0,.02,0]} s={[.73,.085,.8]} c={wood}/><Box p={[0,.1,-.01]} s={[.62,.08,.67]} c="#ddbe96"/>
@@ -175,8 +171,8 @@ function HotelSuites({wood,accent}:{wood:string;accent:string}) {
       <mesh position={[0,.48,.391]}><boxGeometry args={[.65,.8,.02]}/><meshStandardMaterial color="#c3ddd7" roughness={.16} transparent opacity={.2} depthWrite={false}/></mesh>
       <Box p={[.25,.45,.401]} s={[.085,.045,.02]} c="#576864" metal={.55}/>
     </group>)}
-    <Box p={[0,1.96,0]} s={[f.w,.08,f.d]} c={wood}/><Sign p={[0,1.85,.415]}>{String(i+1).padStart(2,"0")}</Sign>
-  </Placed>)}</>;
+    <Box p={[0,1.96,0]} s={[.79,.08,.8]} c={wood}/>
+  </group></NamedFixture></Placed>)}</>;
 }
 
 function BackFixtures({wood,accent,visible}:{wood:string;accent:string;visible:(id:RoomId)=>boolean}) {
@@ -188,8 +184,12 @@ function BackFixtures({wood,accent,visible}:{wood:string;accent:string;visible:(
       {i===1&&<><mesh position={[0,.48,-.45]} rotation={[Math.PI/2,0,0]}><cylinderGeometry args={[.25,.25,1.02,24,1,true]}/><meshStandardMaterial color="#dca07a" side={THREE.DoubleSide}/></mesh><Box p={[0,.39,.58]} s={[.69,.42,.78]} c={accent}/></>}
       {i===2&&<><mesh position={[.28,.67,0]}><torusGeometry args={[.38,.056,12,28]}/><meshStandardMaterial color={accent}/></mesh><Box p={[.28,.4,.07]} s={[.08,.52,.08]} c={wood}/><Box p={[-.4,.28,0]} s={[.45,.15,.73]} c="#d6b78b"/></>}
     </Placed>)}
-    {visible("foodprep")&&<><Sink f={fixtures.prep[0]}/><Cabinet f={fixtures.prep[1]} h={.93} c="#b7bfc1" top="#d5dcda"/>
-      <Cabinet f={fixtures.fridge} h={1.92} c="#c8cece"/><Placed f={fixtures.fridge}><Box p={[0,1.28,0]} s={[.802,.035,.913]} c="#8c999a"/>{[1.12,1.45].map(y=><Box key={y} p={[-.41,y,.19]} s={[.055,.22,.045]} c="#747e80"/>)}</Placed>
+    {visible("foodprep")&&<>
+      <NamedFixture name="Prep Sink"><Sink f={fixtures.prep[0]}/></NamedFixture>
+      <NamedFixture name="Prep Worktop"><Cabinet f={fixtures.prep[1]} h={.93} c="#b7bfc1" top="#d5dcda"/></NamedFixture>
+      <NamedFixture name="Refrigerator"><Cabinet f={fixtures.fridge} h={1.92} c="#c8cece"/>
+        <Placed f={fixtures.fridge}><Box p={[-.46,1.28,0]} s={[.025,.025,.99]} c="#8c999a"/>{[1.1,1.46].map(y=><Box key={y} p={[-.49,y,.34]} s={[.07,.2,.035]} c="#747e80"/>)}</Placed>
+      </NamedFixture>
     </>}
     {visible("breakroom")&&<><Sink f={fixtures.staffCounter} c={wood}/><Cabinet f={fixtures.staffTable} h={.77} c={accent} top="#e8e3d9"/></>}
     {visible("wc")&&<StaffWC wood={wood}/>}
@@ -245,7 +245,7 @@ function Hamsters({walkMode}:{walkMode:boolean}) {
   return <>{positions.map((p,i)=><Hamster key={i} p={p} color={colors[i]} phase={i*2.4} held={held===i}/>)}</>;
 }
 
-function Entrance({accent}:{accent:string}) {
+function Entrance({accent,showSign}:{accent:string;showSign:boolean}) {
   const left=useRef<THREE.Group>(null),right=useRef<THREE.Group>(null);
   const {camera}=useThree();
   const {width,z}=entrance, leaf=width/2;
@@ -262,11 +262,11 @@ function Entrance({accent}:{accent:string}) {
       {[.035,2.47].map(y=><Box key={y} p={[0,y,0]} s={[leaf-.025,.055,.07]} c="#586b64"/>)}
     </group>)}
     <Box p={[0,3.13,z+.05]} s={[5.5,.65,.22]} c={accent}/>
-    <SceneLabel position={[0,3.15,z+.18]} distanceFactor={12} className="entrance-sign" text="THE JIN LITTLE PAWS CO." accent="?"/>
+    {showSign&&<SceneLabel position={[0,3.15,z+.18]} distanceFactor={12} className="entrance-sign" text="THE JIN LITTLE PAWS CO." accent="?"/>}
   </>;
 }
 
-function Architecture({wall,floor,wood,accent,wallOpacity,roof,walls}:{wall:string;floor:string;wood:string;accent:string;wallOpacity:number;roof:boolean;walls:boolean}) {
+function Architecture({wall,floor,wood,accent,wallOpacity,roof,walls,showSign}:{wall:string;floor:string;wood:string;accent:string;wallOpacity:number;roof:boolean;walls:boolean;showSign:boolean}) {
   const h=SHOP.height, y=h/2, t=SHOP.wall, dh=2.42;
   return <>
     <Box p={[0,-.11,0]} s={[SHOP.width,.22,SHOP.length]} c={floor} rough={.84}/>
@@ -284,25 +284,26 @@ function Architecture({wall,floor,wood,accent,wallOpacity,roof,walls}:{wall:stri
           </>}
         </>}
       </group>)}
-      <Entrance accent={accent}/>
+      <Entrance accent={accent} showSign={showSign}/>
     </>}
     {roof&&<Box p={[0,h+.03,0]} s={[SHOP.width,.06,SHOP.length]} c="#f1eadf"/>}
     {[-.64,0,.64].map((x,i)=><mesh key={x} position={[x,.015,10.37+i*.08]} rotation={[-Math.PI/2,0,0]}><circleGeometry args={[.14,24]}/><meshStandardMaterial color={i===1?wood:accent}/></mesh>)}
   </>;
 }
 
-export default function ShopScene({selected,labelFocus,onSelect,walkMode,hidden,isolated,layers,palette,evening,light}:Props) {
+export default function ShopScene({selected,labelFocus,hoveredRoom,onSelect,mode,hidden,isolated,layers,palette,evening,light}:Props) {
   const p=palettes[palette]; const isVisible=(id:RoomId)=>!hidden.has(id)&&(!isolated||isolated===id);
+  const top=mode==="top", walkMode=mode==="walk";
   const env=evening?"#25302f":"#e8eee6";
   const wallOpacity=selected?(layers.transparentWalls?.13:.18):(layers.transparentWalls?.26:1);
   return <>
     <color attach="background" args={[env]}/>
-    <fog attach="fog" args={[env,24,44]}/>
+    {!top&&<fog attach="fog" args={[env,24,44]}/>}
     <ambientLight intensity={(evening?.24:.54)*light}/>
     <hemisphereLight args={[evening?"#778aa0":"#fff7e6","#6f7668",(evening?.38:.8)*light]}/>
     <directionalLight position={[-8,15,9]} intensity={(evening?.75:1.75)*light} castShadow shadow-mapSize={[1024,1024]} shadow-camera-left={-14} shadow-camera-right={14} shadow-camera-top={15} shadow-camera-bottom={-15}/>
     {evening&&<pointLight position={[0,3,-1]} color="#ffd8a8" intensity={22*light} distance={18}/>} 
-    <Architecture wall={p.wall} floor={p.floor} wood={p.wood} accent={p.accent} wallOpacity={wallOpacity} roof={layers.roof} walls={layers.walls}/>
+    <Architecture wall={p.wall} floor={p.floor} wood={p.wood} accent={p.accent} wallOpacity={wallOpacity} roof={!top&&layers.roof} walls={layers.walls} showSign={!top}/>
     {layers.furniture&&<>
       {isVisible("entrance")&&<PetScale/>}
       {isVisible("retail")&&<RetailFixtures wood={p.wood} accent={p.accent}/>} 
@@ -312,8 +313,8 @@ export default function ShopScene({selected,labelFocus,onSelect,walkMode,hidden,
       {isVisible("grooming2")&&<Grooming id="grooming2" accent={p.accent}/>}
       <BackFixtures wood={p.wood} accent={p.accent} visible={isVisible}/>
     </>}
-    <RoomZones selected={selected} focus={labelFocus} onSelect={onSelect} walkMode={walkMode} hidden={hidden} isolated={isolated} show={layers.zones}/>
-    {layers.labels&&<RoomLabels hidden={hidden} isolated={isolated} focus={labelFocus}/>} 
+    <RoomZones selected={selected} focus={labelFocus} hoveredRoom={hoveredRoom} top={top} onSelect={onSelect} walkMode={walkMode} hidden={hidden} isolated={isolated} show={layers.zones}/>
+    {!top&&layers.labels&&<RoomLabels hidden={hidden} isolated={isolated} focus={labelFocus}/>}
     {layers.hamsters&&<Hamsters walkMode={walkMode}/>}
     <mesh rotation={[-Math.PI/2,0,0]} position={[0,-.24,0]} receiveShadow><planeGeometry args={[80,80]}/><meshStandardMaterial color={evening?"#1c2625":"#b8b8a7"} roughness={1}/></mesh>
   </>;
