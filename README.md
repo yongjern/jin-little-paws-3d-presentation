@@ -94,3 +94,9 @@ environment variables, remote assets or custom build command are required.
 - Day/evening modes, intensity and all three material presets update the scene.
 - Fullscreen, keyboard focus, reduced motion and WebGL fallback behave correctly.
 - Layout is usable at desktop, tablet and phone widths in Chromium.
+
+## Credit
+This project is created and maintenance by these people with :heart:
+- Deployment : Vercel
+- Coding by : Yongjern with AI (ChatGPT 5.2-sol, Mulerun, ChatGPT 6.2-sol)
+- Plan Based by : Jacen
